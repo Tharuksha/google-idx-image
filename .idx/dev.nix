@@ -5,13 +5,10 @@
   packages = with pkgs; [
     # QEMU đầy đủ (có qemu-system-x86_64)
     qemu_full
-
-
+    qemu
+    openssh
     wget
 
-    # Tunnel
-    ngrok
-    
   ];
   idx.workspace.onStart = {
     run-ngrok = ''
