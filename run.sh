@@ -1,140 +1,70 @@
 #!/usr/bin/env bash
 set -e
 
-### CONFIG ###
-ISO_URL="https://go.microsoft.com/fwlink/p/?LinkID=2195443"
-ISO_FILE="win11-gamer.iso"
-
-DISK_FILE="/var/win11.qcow2"
-DISK_SIZE="64G"
-
-RAM="8G"
-CORES="4"
-
-VNC_DISPLAY=":0"
-RDP_PORT="3389"
-
-FLAG_FILE="installed.flag"
+# الانتقال لمكان مضمون للعمل
 WORKDIR="$HOME/windows-idx"
-
-### NGROK ###
-NGROK_TOKEN="38WO5iYPn4Hq5A5SUOjtGptsxfE_7jDB4PmSF78GKcAguUo1H"
-NGROK_DIR="$HOME/.ngrok"
-NGROK_BIN="$NGROK_DIR/ngrok"
-NGROK_CFG="$NGROK_DIR/ngrok.yml"
-NGROK_LOG="$NGROK_DIR/ngrok.log"
-
-### CHECK ###
-[ -e /dev/kvm ] || { echo "❌ No /dev/kvm"; exit 1; }
-command -v qemu-system-x86_64 >/dev/null || { echo "❌ No qemu"; exit 1; }
-
-### PREP ###
+cd $HOME
 mkdir -p "$WORKDIR"
 cd "$WORKDIR"
 
-[ -f "$DISK_FILE" ] || qemu-img create -f qcow2 "$DISK_FILE" "$DISK_SIZE"
+# 1. روابط وأسماء الملفات لنسخة حديثة (Windows Server 2022)
+ISO_URL="https://software-static.download.prss.microsoft.com/sg/download/win2022/20348.169.210811-1447.fe_release_svc_refresh_CLIENTSERVER_EVAL_x64FRE_en-us.iso"
+ISO_FILE="win2022.iso"
+DISK_FILE="win2022.qcow2"
+DISK_SIZE="64G"
+PINGGY_TOKEN="kzm1eczI7Bb"
 
-if [ ! -f "$FLAG_FILE" ]; then
-  [ -f "$ISO_FILE" ] || wget --no-check-certificate \
-    -O "$ISO_FILE" "$ISO_URL"
+# 2. تنظيف العمليات القديمة تماماً
+pkill -f "ssh" || true
+pkill -f "qemu" || true
+rm -f vnc.log rdp.log
+sleep 2
+
+# 3. إنشاء ملف القرص لو مش موجود
+if [ ! -f "$DISK_FILE" ]; then
+    echo "💾 Creating disk... please wait"
+    qemu-img create -f qcow2 "$DISK_FILE" "$DISK_SIZE"
 fi
 
-
-############################
-# BACKGROUND FILE CREATOR #
-############################
-(
-  while true; do
-    echo "Lộc Nguyễn đẹp troai" > locnguyen.txt
-    echo "[$(date '+%H:%M:%S')] Đã tạo locnguyen.txt"
-    sleep 300
-  done
-) &
-FILE_PID=$!
-
-#################
-# NGROK START  #
-#################
-mkdir -p "$NGROK_DIR"
-
-if [ ! -f "$NGROK_BIN" ]; then
-  curl -sL https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz \
-  | tar -xz -C "$NGROK_DIR"
-  chmod +x "$NGROK_BIN"
+# 4. التأكد من وجود ملف الأيزو الحديث
+if [ ! -f "$ISO_FILE" ]; then
+    echo "📥 Downloading Windows Server 2022 ISO... this will take some time"
+    # استخدام wget مع توجيه الإخراج لعرض تقدم التحميل
+    wget --show-progress -O "$ISO_FILE" "$ISO_URL"
 fi
 
-cat > "$NGROK_CFG" <<EOF
-version: "2"
-authtoken: $NGROK_TOKEN
-tunnels:
-  vnc:
-    proto: tcp
-    addr: 5900
-  rdp:
-    proto: tcp
-    addr: 3389
-EOF
+echo "🚀 جاري فتح نفق VNC للبدء في التثبيت..."
 
-pkill -f "$NGROK_BIN" 2>/dev/null || true
-"$NGROK_BIN" start --all --config "$NGROK_CFG" \
-  --log=stdout > "$NGROK_LOG" 2>&1 &
-sleep 5
+# 5. فتح نفق VNC (المنفذ 5900) باستخدام خاصية Force
+ssh -p 443 -o StrictHostKeyChecking=no -o ServerAliveInterval=30 \
+    -R0:localhost:5900 \
+    ${PINGGY_TOKEN}+force+tcp@a.pinggy.io > vnc.log 2>&1 &
 
-VNC_ADDR=$(grep -oE 'tcp://[^ ]+' "$NGROK_LOG" | sed -n '1p')
-RDP_ADDR=$(grep -oE 'tcp://[^ ]+' "$NGROK_LOG" | sed -n '2p')
+echo "⏳ انتظر جلب رابط الـ VNC..."
+sleep 15
 
-echo "🌍 VNC PUBLIC : $VNC_ADDR"
-echo "🌍 RDP PUBLIC : $RDP_ADDR"
+# 6. عرض الرابط
+VNC_URL=$(grep -oE '[a-zA-Z0-9.-]+\.pinggy\.link:[0-9]+' vnc.log | head -n 1)
 
-#################
-# RUN QEMU     #
-#################
-if [ ! -f "$FLAG_FILE" ]; then
-  echo "⚠️  CHẾ ĐỘ CÀI ĐẶT WINDOWS"
-  echo "👉 Cài xong quay lại nhập: xong"
+echo "------------------------------------------------"
+if [ -z "$VNC_URL" ]; then
+    echo "❌ فشل جلب الرابط. بص على الـ Log:"
+    cat vnc.log
+else
+    echo "✅ رابط الـ VNC الجديد (افتحه في VNC Viewer):"
+    echo "🔗 العنوان: $VNC_URL"
+    echo "------------------------------------------------"
+    echo "💡 ملاحظة: التحميل الأولي لـ ISO قد يأخذ وقتاً (حوالي 5 جيجا)"
+fi
 
-  qemu-system-x86_64 \
+# 7. تشغيل المحاكي في مرحلة التثبيت
+echo "🎮 جاري تشغيل المثبت (Installation Mode)..."
+qemu-system-x86_64 \
     -enable-kvm \
-    -cpu host \
-    -smp "$CORES" \
-    -m "$RAM" \
-    -machine q35 \
+    -cpu host -smp 4 -m 8G -machine q35 \
     -drive file="$DISK_FILE",if=ide,format=qcow2 \
     -cdrom "$ISO_FILE" \
     -boot order=d \
-    -netdev user,id=net0,hostfwd=tcp::3389-:3389 \
-    -device e1000,netdev=net0 \
-    -vnc "$VNC_DISPLAY" \
-    -usb -device usb-tablet &
-
-  QEMU_PID=$!
-
-  while true; do
-    read -rp "👉 Nhập 'xong': " DONE
-    if [ "$DONE" = "xong" ]; then
-      touch "$FLAG_FILE"
-      kill "$QEMU_PID"
-      kill "$FILE_PID"
-      pkill -f "$NGROK_BIN"
-      rm -f "$ISO_FILE"
-      echo "✅ Hoàn tất – lần sau boot thẳng qcow2"
-      exit 0
-    fi
-  done
-
-else
-  echo "✅ Windows đã cài – boot thường"
-
-  qemu-system-x86_64 \
-    -enable-kvm \
-    -cpu host \
-    -smp "$CORES" \
-    -m "$RAM" \
-    -machine q35 \
-    -drive file="$DISK_FILE",if=ide,format=qcow2 \
-    -boot order=c \
-    -netdev user,id=net0,hostfwd=tcp::3389-:3389 \
-    -device e1000,netdev=net0 \
-    -vnc "$VNC_DISPLAY" \
+    -vnc :0 \
+    -net user,hostfwd=tcp::3389-:3389 -net nic \
     -usb -device usb-tablet
-fi
