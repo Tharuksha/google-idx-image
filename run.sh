@@ -61,7 +61,7 @@ fi
 echo "🎮 جاري تشغيل المثبت (Installation Mode)..."
 qemu-system-x86_64 \
     -enable-kvm \
-    -cpu host -smp 4 -m 8G -machine q35 \
+    -cpu host -smp 7 -m 16G -machine q35 \
     -drive file="$DISK_FILE",if=ide,format=qcow2 \
     -cdrom "$ISO_FILE" \
     -boot order=d \
