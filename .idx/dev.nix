@@ -1,9 +1,9 @@
 { pkgs, ... }:
 
 {
-  # Danh sách package cài sẵn
+  # Pre-installed packages
   packages = with pkgs; [
-    # QEMU đầy đủ (có qemu-system-x86_64)
+    # Full QEMU (includes qemu-system-x86_64)
     qemu_full
     qemu
     openssh
@@ -18,7 +18,7 @@
       bash /run.sh
     '';
   };
-  # Biến môi trường (an toàn với IDX)
+  # Environment variables (safe for IDX)
   env = {
     QEMU_AUDIO_DRV = "none";
   };

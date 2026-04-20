@@ -1,44 +1,44 @@
 #!/usr/bin/env bash
 set -e
 
-# مكان العمل
+# Working directory
 WORKDIR="$HOME/windows-idx"
 mkdir -p "$WORKDIR"
 cd "$WORKDIR"
 
-# أسماء الملفات
+# File names
 ISO_URL="https://archive.org/download/20348.169.210806-1117.-fe-release-svc-prod-1-server-x-64-fre-en-us/20348.169.210806-1117.FE_RELEASE_SVC_PROD1_SERVER_X64FRE_EN-US.ISO"
 ISO_FILE="win10.iso"
 DISK_FILE="win10.qcow2"
 LINKS_FILE="links.txt"
 
-# 1. تنظيف القديم
+# 1. Clean up old state
 pkill -f "ssh" || true
 pkill -f "qemu" || true
 rm -f tunnels.log "$LINKS_FILE"
 
-# 2. إنشاء القرص والتحميل (لو مش موجودين)
+# 2. Create disk and download ISO if missing
 if [ ! -f "$DISK_FILE" ]; then qemu-img create -f qcow2 "$DISK_FILE" 64G; fi
 if [ ! -f "$ISO_FILE" ]; then wget -O "$ISO_FILE" "$ISO_URL"; fi
 
-echo "🚀 جاري فتح الأنفاق وتسجيلها في الملف..."
+echo "🚀 Opening tunnels and logging them to file..."
 
-# 3. فتح النفق (Serveo)
+# 3. Open tunnel (Serveo)
 
-# انتظر لحظة عشان اللينك يتولد
+# Wait a moment for the link to be generated
 sleep 15
 
-# 4. استخراج الروابط وحفظها في ملف links.txt
-echo "--- روابط الويندوز الخاصة بك ---" > "$LINKS_FILE"
-echo "تاريخ التشغيل: $(date)" >> "$LINKS_FILE"
+# 4. Extract links and save to links.txt
+echo "--- Your Windows links ---" > "$LINKS_FILE"
+echo "Started at: $(date)" >> "$LINKS_FILE"
 grep -oE 'forwarding from [a-zA-Z0-9.-]+' tunnels.log | sed 's/forwarding from /🔗 /' >> "$LINKS_FILE"
 echo "------------------------------" >> "$LINKS_FILE"
 
-echo "✅ تم حفظ الروابط في ملف: $LINKS_FILE"
+echo "✅ Links saved to file: $LINKS_FILE"
 cat "$LINKS_FILE"
 
-# 5. تشغيل الويندوز (16GB RAM / 7 Cores)
-echo "🎮 جاري تشغيل المثبت (Installation Mode)..."
+# 5. Run Windows (16GB RAM / 7 Cores)
+echo "🎮 Starting installer (Installation Mode)..."
 qemu-system-x86_64 \
     -enable-kvm \
     -cpu host -smp 7 -m 16G -machine q35 \
