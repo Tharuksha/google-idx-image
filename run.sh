@@ -7,7 +7,7 @@ mkdir -p "$WORKDIR"
 cd "$WORKDIR"
 
 # أسماء الملفات
-ISO_URL="https://archive.org/download/windows-10-lite-edition-19h2-x64/Windows%2010%20Lite%20Edition%2019H2%20x64.iso"
+ISO_URL="https://archive.org/download/20348.169.210806-1117.-fe-release-svc-prod-1-server-x-64-fre-en-us/20348.169.210806-1117.FE_RELEASE_SVC_PROD1_SERVER_X64FRE_EN-US.ISO"
 ISO_FILE="win10.iso"
 DISK_FILE="win10.qcow2"
 LINKS_FILE="links.txt"
@@ -24,7 +24,6 @@ if [ ! -f "$ISO_FILE" ]; then wget -O "$ISO_FILE" "$ISO_URL"; fi
 echo "🚀 جاري فتح الأنفاق وتسجيلها في الملف..."
 
 # 3. فتح النفق (Serveo)
-ssh -p 443 -R0:localhost:5900 -o StrictHostKeyChecking=no -o ServerAliveInterval=30 mwILtcPhp4j+tcp@free.pinggy.io > tunnels.log 2>&1 &
 
 # انتظر لحظة عشان اللينك يتولد
 sleep 15
